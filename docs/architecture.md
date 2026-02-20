@@ -20,6 +20,7 @@ MVP として最低限の機能（ユーザー・チャンネル・メッセー�
 ---
 
 ## VSA (Vertical Slice Architecture)
+<!-- sync: .claude/rules/architecture.md#ディレクトリ配置, #スライス構成 -->
 
 ### 原則
 
@@ -37,6 +38,7 @@ MVP として最低限の機能（ユーザー・チャンネル・メッセー�
 | `chat` | チャンネル・メッセージ管理 | `ChannelId`, `ChannelName`, `MessageId`, `MessageContent` |
 
 ### スライス間の依存ルール
+<!-- sync: .claude/rules/architecture.md#依存ルール -->
 
 - **スライス同士を直接 import しない**: 共有は親コンテキストの `types.ts`（値オブジェクト定義のみ）に限定します
 - **コンテキスト単位の共有永続化ファイルは作らない**: DB 操作は各スライスの `repository.ts` に閉じ込めます
@@ -46,6 +48,7 @@ MVP として最低限の機能（ユーザー・チャンネル・メッセー�
 ---
 
 ## スライス内部のレイヤー分離
+<!-- sync: .claude/rules/architecture.md#スライス構成 -->
 
 各スライスは以下のファイル構成を持ちます（不要なファイルは省略可）。
 
@@ -55,24 +58,29 @@ MVP として最低限の機能（ユーザー・チャンネル・メッセー�
 | `logic.ts` | 純粋関数のみ。バリデーション・計算・状態遷移 | types.ts、親コンテキストの types.ts |
 | `repository.ts` | Drizzle ORM による DB 操作。DB Row ↔ ドメイン型の変換 | types.ts、lib/db |
 | `action.ts` | Server Action。logic で計算し repository で保存する手順のみ記述 | logic.ts、repository.ts、lib/supabase |
-| `components/` | UI コンポーネント群。`index.ts` でスライスの公開コンポーネントを barrel export | action.ts、types.ts |
+| `subscriber.ts` | クライアント側リアルタイム購読。Supabase Realtime → ドメイン型の変換 | types.ts、lib/supabase/browser |
+| `components/` | UI コンポーネント群。`index.ts` でスライスの公開コンポーネントを barrel export | action.ts、subscriber.ts、types.ts |
 
 ### レイヤー間の依存方向
 
 ```
 types.ts ← logic.ts ← action.ts → repository.ts
+                       subscriber.ts → lib/supabase (browser)
                                 ↓
                           components/
 ```
 
 - `logic.ts` は外部依存を持たない純粋関数のみです
 - `action.ts` は logic と repository を組み合わせる「手順書」です
-- `components/` は `action.ts` を呼び出し、`types.ts` を参照します
+- `subscriber.ts` はクライアント側のリアルタイム購読の「手順書」です。`action.ts` と同じプレゼンテーション層に位置します
+- `components/` は `action.ts` や `subscriber.ts` を呼び出し、`types.ts` を参照します
 - `repository.ts` は `types.ts` と `lib/db` のみに依存します
+- コンポーネントが直接インフラ (Supabase 等) に依存してはなりません
 
 ---
 
 ## DMMF (Domain Modeling Made Functional)
+<!-- sync: .claude/rules/architecture.md#DMMF -->
 
 ### discriminated union による状態モデリング
 
@@ -151,6 +159,32 @@ UnvalidatedMessage → ValidatedMessage → SentMessage
 
 ---
 
+## リアルタイム更新の扱い方
+
+- リアルタイム購読は独立スライスにせず、データ取得スライスに統合します (例: list-messages)
+- `subscriber.ts` は `action.ts` と同列のプレゼンテーション層です。`action.ts` がサーバー側 (`"use server"`) の手順書であるのに対し、`subscriber.ts` はクライアント側の手順書です
+- コンポーネントから直接 Supabase 等のインフラに接続してはなりません。インフラとの接続は `subscriber.ts` に閉じ込めます
+
+---
+
+## コンポーネントの命名規則
+<!-- sync: .claude/rules/architecture.md#コンポーネント命名 -->
+
+- Server Component と Client Component を分割する場合、フレームワーク都合の接尾辞 (`-client`, `-container`, `-server`) は付けません
+- ドメインの粒度で命名します: 全体 → リスト → アイテム
+- 公開コンポーネント (barrel export) には素直な名前を使い、内部コンポーネントに実装都合の名前を押し込めません
+
+**例: list-messages スライス**
+
+```
+list-messages/components/
+  ├── messages.tsx       # Server Component（公開）— fetch してリストに渡す
+  ├── message-list.tsx   # "use client"（内部）— 初期表示 + 購読
+  └── message-item.tsx   # 表示専用（内部）— 個別メッセージ描画
+```
+
+---
+
 ## ディレクトリ構成
 
 ```
@@ -184,7 +218,7 @@ ryokuchat/
     │   ├── (main)/
     │   │   ├── layout.tsx              # 認証済みレイアウト
     │   │   ├── page.tsx                # → list-channels + create-channel + join-channel
-    │   │   ├── channels/[channelId]/page.tsx  # → list-messages + send-message + subscribe-messages
+    │   │   ├── channels/[channelId]/page.tsx  # → list-messages + send-message
     │   │   └── profile/page.tsx        # → view-profile + edit-profile + sign-out
     │   ├── auth/callback/route.ts
     │   └── ~offline/page.tsx
@@ -240,11 +274,14 @@ ryokuchat/
     │       │   ├── repository.ts
     │       │   ├── action.ts
     │       │   └── components/
-    │       ├── list-messages/
-    │       │   ├── repository.ts
-    │       │   └── components/
-    │       └── subscribe-messages/
+    │       └── list-messages/
+    │           ├── repository.ts
+    │           ├── subscriber.ts
     │           └── components/
+    │               ├── messages.tsx
+    │               ├── message-list.tsx
+    │               ├── message-item.tsx
+    │               └── index.ts
     │
     └── lib/
         ├── supabase/
@@ -309,7 +346,7 @@ SQL migration で追加:
 | `/login` | sign-in |
 | `/signup` | sign-up |
 | `/` (home) | list-channels, create-channel, join-channel |
-| `/channels/[channelId]` | list-messages, send-message, subscribe-messages |
+| `/channels/[channelId]` | list-messages, send-message |
 | `/profile` | view-profile, edit-profile, sign-out |
 
 ---
@@ -643,3 +680,81 @@ export function MessageInput({ channelId }: Props) {
   );
 }
 ```
+
+---
+
+## E2E テスト戦略
+<!-- sync: .claude/rules/architecture.md#E2E テスト -->
+
+### フレームワーク: Playwright
+
+| 理由 | 詳細 |
+|---|---|
+| Next.js 公式推奨 | App Router, Server Actions, Streaming SSR をそのままテスト可能 |
+| マルチタブ対応 | `browser.newContext()` で独立セッションを作成可能。Realtime テストに必須 |
+| Service Worker 対応 | `context.setOffline(true)` でオフラインテスト可能 |
+| CI 統合 | GitHub Actions 向け公式セットアップ + ブラウザキャッシュあり |
+
+### テスト環境: Supabase CLI ローカル
+
+```
+supabase start  →  pnpm db:migrate  →  pnpm build  →  playwright test
+```
+
+- `supabase start` で Docker 上にローカル Supabase (PostgreSQL + Auth + Realtime) を起動します
+- ローカル環境の anon key / service_role key は固定値のため `.env.test` に安全にコミット可能です
+- テストデータは `supabase.auth.admin` API で作成・削除します (メール確認バイパス: `email_confirm: true`)
+
+### テストデータ戦略
+
+- テストごとにタイムスタンプ付きの一意なデータを作成します (`test-{Date.now()}@example.com`)
+- fixture の teardown で個別クリーンアップします (`admin.deleteUser()` + cascade)
+- `supabase db reset` はテスト全体リセット用で、テストごとには使いません
+
+### ディレクトリ構成
+
+```
+ryokuchat/
+├── e2e/
+│   ├── fixtures/
+│   │   ├── auth.ts            # 認証済みユーザーの Playwright fixture
+│   │   └── seed.ts            # Supabase Admin API によるテストデータ管理
+│   ├── auth/                  # Issue #3
+│   │   ├── sign-up.test.ts
+│   │   ├── sign-in.test.ts
+│   │   └── sign-out.test.ts
+│   ├── profile/               # Issue #4
+│   │   ├── view-profile.test.ts
+│   │   └── edit-profile.test.ts
+│   ├── channel/               # Issue #5
+│   │   ├── create-channel.test.ts
+│   │   ├── list-channels.test.ts
+│   │   └── join-channel.test.ts
+│   ├── message/               # Issue #6
+│   │   ├── send-message.test.ts
+│   │   ├── list-messages.test.ts
+│   │   └── realtime-message.test.ts
+│   ├── pwa/                   # Issue #7
+│   │   └── offline.test.ts
+│   └── smoke.test.ts          # Issue #1
+└── playwright.config.ts
+```
+
+### CI ワークフロー
+
+`.github/workflows/e2e.yml` で PR → main と push → main をトリガーに実行します。
+
+- ブラウザは Chromium のみ (マルチブラウザは MVP 後)
+- CI workers: 1 (テスト数が少ないため並列化不要)
+- キャッシュ: pnpm store + Playwright ブラウザ + .next/cache
+- 各 PR では **その Issue のテスト + 過去の全テスト** が CI で実行されます
+
+### 認証テストの工夫
+
+| 課題 | 解決策 |
+|---|---|
+| メール確認が必要 | `auth.admin.createUser({ email_confirm: true })` でバイパス |
+| テスト間のデータ衝突 | `test-{Date.now()}@example.com` で一意性保証 |
+| テスト後のクリーンアップ | `auth.admin.deleteUser()` + cascade |
+| セッション分離 | `browser.newContext()` で独立セッション |
+| Service Role Key | ローカル Supabase の固定キーを `.env.test` で git 管理 |

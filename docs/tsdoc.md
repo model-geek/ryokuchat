@@ -5,6 +5,7 @@
 ---
 
 ## 1. 基本方針
+<!-- sync: .claude/rules/tsdoc.md#基本 -->
 
 - **言語**: 日本語で統一
 - **対象**: すべての要素（公開・内部問わず）
@@ -60,6 +61,7 @@ const messages = [];
 ---
 
 ## 3. 記載形式
+<!-- sync: .claude/rules/tsdoc.md#形式 -->
 
 ### 3.1 単行 / 複数行コメント
 
@@ -274,6 +276,7 @@ const messagesTable = pgTable("messages", {
 ---
 
 ## 4. 内容のルール
+<!-- sync: .claude/rules/tsdoc.md#内容 -->
 
 ### 4.1 ユビキタス言語
 
@@ -634,6 +637,7 @@ function listMessages(params: ListMessagesParams): Promise<Message[]> {
 ---
 
 ## 6. 文体規約
+<!-- sync: .claude/rules/tsdoc.md#文体 -->
 
 ### 基本ルール
 

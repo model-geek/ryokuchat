@@ -9,6 +9,7 @@ Next.js App Router / Park UI (Panda CSS) / Drizzle ORM / Supabase / Serwist
 ## ドキュメント
 
 - docs/architecture.md — アーキテクチャ設計
+- docs/packages.md — パッケージバージョンと注意事項
 - docs/tsdoc.md — TSDoc 記載規約
 
 ## コマンド

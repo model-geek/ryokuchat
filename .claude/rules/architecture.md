@@ -13,6 +13,7 @@
 - logic.ts — 純粋関数のみ（外部依存禁止）
 - repository.ts — Drizzle DB 操作
 - action.ts — Server Action（logic → repository の手順）
+- subscriber.ts — クライアント側 Realtime 購読（action.ts と同列のプレゼンテーション層）
 - components/ — UI。index.ts で barrel export
 
 ## 依存ルール
@@ -32,3 +33,21 @@
 - Drizzle スキーマ: src/lib/db/schema.ts
 - Supabase クライアント: src/lib/supabase/
 - サーバー側は getUser()（getSession() 禁止）
+
+## コンポーネント命名
+
+- SC/CC 分割時にフレームワーク接尾辞 (-client, -container) は付けない
+- ドメイン粒度で命名: 全体 (Messages) → リスト (MessageList) → アイテム (MessageItem)
+- コンポーネントからインフラ (Supabase 等) を直接 import しない
+
+## E2E テスト
+
+- Playwright を使用。テストは e2e/ に配置
+- ファイル名: {use-case}.test.ts (例: sign-up.test.ts)
+- fixture で認証・テストデータを管理 (e2e/fixtures/)
+- テストデータは `test-{Date.now()}@example.com` で一意性保証
+- teardown で個別クリーンアップ (supabase db reset は使わない)
+
+## 同期
+
+- docs/architecture.md を変更した場合は、このファイルの対応セクションも同期してください
