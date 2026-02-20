@@ -14,4 +14,11 @@ Next.js App Router / Park UI (Panda CSS) / Drizzle ORM / Supabase / Serwist
 
 ## コマンド
 
-（実装後に追記）
+```bash
+pnpm dev                        # 開発サーバー起動
+pnpm build                      # Panda codegen + Next.js ビルド
+pnpm panda codegen              # styled-system/ 再生成
+pnpm drizzle-kit generate       # マイグレーション生成
+pnpm drizzle-kit migrate        # マイグレーション実行
+pnpm exec playwright test       # E2E テスト実行
+```
