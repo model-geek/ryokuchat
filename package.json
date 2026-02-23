@@ -21,6 +21,7 @@
     "react-dom": "19.2.3"
   },
   "devDependencies": {
+    "@next/env": "^16.1.6",
     "@pandacss/dev": "1.6.0",
     "@park-ui/cli": "1.0.1",
     "@playwright/test": "1.58.2",
