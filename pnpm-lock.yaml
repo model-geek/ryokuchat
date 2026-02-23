@@ -39,6 +39,9 @@ importers:
         specifier: 19.2.3
         version: 19.2.3(react@19.2.3)
     devDependencies:
+      '@next/env':
+        specifier: ^16.1.6
+        version: 16.1.6
       '@pandacss/dev':
         specifier: 1.6.0
         version: 1.6.0(typescript@5.9.3)
